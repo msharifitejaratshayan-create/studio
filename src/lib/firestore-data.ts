@@ -40,7 +40,7 @@ export const uploadCsv = (
             });
             errorEmitter.emit('permission-error', permissionError);
             // also reject the promise
-            reject(new Error('You do not have permission to upload this file. Please sign in.'))
+            reject(new Error('You do not have permission to upload this file.'))
         });
         
         resolve();
