@@ -1,14 +1,10 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback, DragEvent } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   AlertCircle,
-  FileCode,
   Loader2,
-  UploadCloud,
   PieChart,
-  BarChart,
-  CheckCircle,
   BarChart2,
 } from 'lucide-react';
 import {
@@ -25,16 +21,17 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+import { useFirestore, useDoc } from '@/firebase';
 
 import { exportToCsv, parseCsv } from '@/lib/csv';
 import { useToast } from '@/hooks/use-toast';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 
 import { DataTable } from './DataTable';
 import { DataTableToolbar } from './DataTableToolbar';
+import { collection, doc } from 'firebase/firestore';
 
 type CsvData = {
   headers: string[];
@@ -53,109 +50,18 @@ const ROWS_PER_PAGE = 50;
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))'];
 const STACKED_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))'];
 
-
-const FileUploader = ({ title, onFileUpload, isLoading, error, hasData }: { title: string, onFileUpload: (file: File) => void, isLoading: boolean, error: string | null, hasData: boolean }) => {
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleDrag = (e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setIsDragging(true);
-    } else if (e.type === "dragleave") {
-      setIsDragging(false);
-    }
-  };
-
-  const handleDrop = (e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      onFileUpload(e.dataTransfer.files[0]);
-    }
-  };
-
-  if (hasData) {
-    return (
-       <Card className="w-full shadow-lg border-2 border-primary/50">
-        <CardHeader className="text-center">
-            <div className="mx-auto bg-green-500/10 text-green-500 p-3 rounded-full w-fit mb-4">
-            <CheckCircle className="h-8 w-8" />
-            </div>
-            <CardTitle className="text-2xl font-bold">{title}</CardTitle>
-            <CardDescription>File loaded successfully.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors border-border hover:border-primary/50 hover:bg-muted">
-                <div className="flex flex-col items-center justify-center">
-                    <p className="text-sm text-muted-foreground">
-                    <span className="font-semibold">Click here</span> to upload a new file
-                    </p>
-                </div>
-                <input type="file" accept=".csv" onChange={(e) => e.target.files && onFileUpload(e.target.files[0])} className="hidden" />
-            </label>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  return (
-    <Card className="w-full shadow-lg">
-      <CardHeader className="text-center">
-        <div className="mx-auto bg-primary/10 text-primary p-3 rounded-full w-fit mb-4">
-          <FileCode className="h-8 w-8" />
-        </div>
-        <CardTitle className="text-2xl font-bold">{title}</CardTitle>
-        <CardDescription>Upload a CSV file to begin analysis</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <label
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 hover:bg-muted'}`}
-        >
-          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-            <UploadCloud className={`w-10 h-10 mb-3 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
-            <p className={`mb-2 text-sm ${isDragging ? 'text-primary' : 'text-muted-foreground'}`}>
-              <span className="font-semibold">Click to upload</span> or drag and drop
-            </p>
-            <p className="text-xs text-muted-foreground">CSV files up to 50MB</p>
-          </div>
-          <input type="file" accept=".csv" onChange={(e) => e.target.files && onFileUpload(e.target.files[0])} className="hidden" />
-        </label>
-        {isLoading && (
-          <div className="mt-4 space-y-2">
-            <p className="text-sm text-center text-muted-foreground">
-              {"Uploading & Parsing..."}
-            </p>
-            <Progress value={50} />
-          </div>
-        )}
-        {error && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Upload Failed</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
 export function DataLensDashboard() {
+  const firestore = useFirestore();
+  
+  const threadsRef = useMemo(() => firestore ? doc(collection(firestore, 'csv_data'), 'threads') : null, [firestore]);
+  const nonThreadsRef = useMemo(() => firestore ? doc(collection(firestore, 'csv_data'), 'non-threads') : null, [firestore]);
+
+  const { data: threadsDoc, loading: threadsLoading, error: threadsError } = useDoc(threadsRef);
+  const { data: nonThreadsDoc, loading: nonThreadsLoading, error: nonThreadsError } = useDoc(nonThreadsRef);
+
   const [threadsData, setThreadsData] = useState<CsvData | null>(null);
   const [nonThreadsData, setNonThreadsData] = useState<CsvData | null>(null);
-  
-  const [threadsError, setThreadsError] = useState<string | null>(null);
-  const [nonThreadsError, setNonThreadsError] = useState<string | null>(null);
 
-  const [threadsLoading, setThreadsLoading] = useState(false);
-  const [nonThreadsLoading, setNonThreadsLoading] = useState(false);
-  
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -166,80 +72,30 @@ export function DataLensDashboard() {
 
   const { toast } = useToast();
 
-  const handleFileUpload = useCallback((file: File, type: 'threads' | 'non-threads') => {
-    if (!file) return;
-    if (file.type !== 'text/csv') {
-      const errorMsg = 'Invalid file type. Please upload a CSV file.';
-      if (type === 'threads') setThreadsError(errorMsg);
-      else setNonThreadsError(errorMsg);
-      return;
-    }
-
-    if (type === 'threads') {
-      setThreadsLoading(true);
-      setThreadsError(null);
-    } else {
-      setNonThreadsLoading(true);
-      setNonThreadsError(null);
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
+  useEffect(() => {
+    if (threadsDoc?.content) {
       try {
-        const text = e.target?.result as string;
-        const parsedData = parseCsv(text);
-        
-        if (type === 'threads') {
-          setThreadsData(parsedData);
-        } else {
-          setNonThreadsData(parsedData);
-        }
-
-        setCurrentPage(1);
-        setSortConfig(null);
-        setGlobalFilter('');
-        setColumnFilters({});
-        toast({
-          title: "Upload successful",
-          description: `Loaded ${parsedData.data.length} rows and ${parsedData.headers.length} columns for ${type}.`,
-        });
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred during parsing.';
-        if (type === 'threads') {
-          setThreadsError(errorMsg);
-          setThreadsData(null);
-        } else {
-          setNonThreadsError(errorMsg);
-          setNonThreadsData(null);
-        }
-        toast({
-          variant: 'destructive',
-          title: "Parsing Error",
-          description: err instanceof Error ? err.message : `Could not parse the ${type} CSV file.`,
-        });
-      } finally {
-        if (type === 'threads') setThreadsLoading(false);
-        else setNonThreadsLoading(false);
+        setThreadsData(parseCsv(threadsDoc.content));
+      } catch (e) {
+        toast({ variant: 'destructive', title: "Error parsing threads.csv", description: e instanceof Error ? e.message : 'Unknown error' });
       }
-    };
-    reader.onerror = () => {
-      const errorMsg = 'Failed to read the file.';
-       if (type === 'threads') {
-          setThreadsError(errorMsg);
-          setThreadsLoading(false);
-        } else {
-          setNonThreadsError(errorMsg);
-          setNonThreadsLoading(false);
-        }
-       toast({
-          variant: 'destructive',
-          title: "File Read Error",
-          description: `There was an issue reading your ${type} file.`,
-        });
-    };
-    reader.readAsText(file);
-  }, [toast]);
-  
+    } else {
+      setThreadsData(null);
+    }
+  }, [threadsDoc, toast]);
+
+  useEffect(() => {
+    if (nonThreadsDoc?.content) {
+      try {
+        setNonThreadsData(parseCsv(nonThreadsDoc.content));
+      } catch (e) {
+        toast({ variant: 'destructive', title: "Error parsing non-threads.csv", description: e instanceof Error ? e.message : 'Unknown error' });
+      }
+    } else {
+        setNonThreadsData(null);
+    }
+  }, [nonThreadsDoc, toast]);
+
   const combinedData = useMemo(() => {
     if (!threadsData && !nonThreadsData) return null;
     
@@ -258,7 +114,6 @@ export function DataLensDashboard() {
     };
 
   }, [threadsData, nonThreadsData]);
-  
 
   useEffect(() => {
     if (combinedData && highlightEnabled && combinedData.data.length > 0) {
@@ -343,10 +198,11 @@ export function DataLensDashboard() {
   };
   
   const handleClear = () => {
+    // This function will be more complex with firestore, maybe for deleting docs.
+    // For now, we just clear local state.
     setThreadsData(null);
     setNonThreadsData(null);
-    setThreadsError(null);
-    setNonThreadsError(null);
+    toast({ title: "Local data cleared." });
   }
   
   const pieChartData = useMemo(() => {
@@ -380,16 +236,48 @@ export function DataLensDashboard() {
     return bins;
   }, [combinedData]);
 
-  const hasAnyData = threadsData || nonThreadsData;
+  const isLoading = threadsLoading || nonThreadsLoading;
+  const dataError = threadsError || nonThreadsError;
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex justify-center items-center h-screen">
+          <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="text-muted-foreground">Loading dashboard data...</p>
+          </div>
+      </div>
+    );
+  }
+
+  if (dataError) {
+      return (
+          <div className="p-8 flex justify-center items-center h-screen">
+              <Alert variant="destructive" className="max-w-lg">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error Loading Data</AlertTitle>
+                <AlertDescription>{dataError.message || 'An unknown error occurred while fetching data from the database.'}</AlertDescription>
+              </Alert>
+          </div>
+      )
+  }
+  
+  if (!threadsDoc?.content && !nonThreadsDoc?.content) {
+      return (
+           <div className="p-8 flex justify-center items-center h-screen">
+              <Alert className="max-w-lg">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>No Data Found</AlertTitle>
+                <AlertDescription>
+                    No CSV data has been uploaded yet. Please go to the <a href="/admin" className="underline text-primary">Admin Page</a> to upload the `threads.csv` and `non-threads.csv` files.
+                </AlertDescription>
+              </Alert>
+          </div>
+      )
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 flex flex-col gap-8">
-      <div className="flex flex-col md:flex-row gap-8 w-full">
-        <FileUploader title="Threads CSV" onFileUpload={(file) => handleFileUpload(file, 'threads')} isLoading={threadsLoading} error={threadsError} hasData={!!threadsData}/>
-        <FileUploader title="Non-Threads CSV" onFileUpload={(file) => handleFileUpload(file, 'non-threads')} isLoading={nonThreadsLoading} error={nonThreadsError} hasData={!!nonThreadsData} />
-      </div>
-
-      {hasAnyData && (
         <>
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
@@ -472,7 +360,6 @@ export function DataLensDashboard() {
             />
           </Card>
         </>
-      )}
     </div>
   );
 }

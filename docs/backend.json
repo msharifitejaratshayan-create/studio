@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's public profile information.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "format": "uri",
+          "description": "The URL of the user's profile picture."
+        }
+      }
+    },
+    "CsvDocument": {
+      "title": "CSV Document",
+      "description": "Represents the string content of an uploaded CSV file.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "The full string content of the CSV file."
+        }
+      },
+      "required": ["content"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Stores public information about a user."
+    },
+    "/csv_data/{csvId}": {
+       "schema": {
+        "$ref": "#/entities/CsvDocument"
+      },
+      "description": "Stores the content of uploaded CSV files, where csvId is 'threads' or 'non-threads'."
+    }
+  }
+}
