@@ -69,8 +69,8 @@ export function DataLensDashboard() {
       setError(null);
       try {
         const [threadsRes, nonThreadsRes] = await Promise.all([
-          fetch('http://10.30.30.94/data/threads.csv'),
-          fetch('http://10.30.30.94/data/nonthreads.csv')
+          fetch('/data/threads.csv'),
+          fetch('/data/nonthreads.csv')
         ]);
 
         if (threadsRes.ok) {
