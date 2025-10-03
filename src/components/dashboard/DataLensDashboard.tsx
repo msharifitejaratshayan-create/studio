@@ -9,6 +9,7 @@ import {
   PieChart,
   BarChart,
   CheckCircle,
+  BarChart2,
 } from 'lucide-react';
 import {
   Bar,
@@ -45,6 +46,8 @@ type SortConfig = {
   key: string;
   direction: 'ascending' | 'descending';
 };
+
+type HighlightType = 'red' | 'green' | 'none';
 
 const ROWS_PER_PAGE = 50;
 
@@ -162,7 +165,7 @@ export function DataLensDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   
   const [highlightEnabled, setHighlightEnabled] = useState(false);
-  const [highlightedRows, setHighlightedRows] = useState<boolean[]>([]);
+  const [highlightedRows, setHighlightedRows] = useState<HighlightType[]>([]);
 
   const { toast } = useToast();
 
@@ -342,7 +345,7 @@ export function DataLensDashboard() {
     
     return paginatedData.map(paginatedRow => {
       const originalIndex = combinedData.data.findIndex(originalRow => originalRow === paginatedRow);
-      return highlightedRows[originalIndex] || false;
+      return highlightedRows[originalIndex] || 'none';
     });
 
   }, [paginatedData, highlightedRows, highlightEnabled, combinedData]);
@@ -446,7 +449,7 @@ export function DataLensDashboard() {
             <Card className="col-span-full lg:col-span-5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Anomaly Score Distribution</CardTitle>
-                <BarChart className="h-4 w-4 text-muted-foreground" />
+                <BarChart2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 {combinedData?.data.some(d => d['AnomalyScore']) ? (

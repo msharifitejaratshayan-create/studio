@@ -20,12 +20,14 @@ type SortConfig = {
   direction: 'ascending' | 'descending';
 };
 
+type HighlightType = 'red' | 'green' | 'none';
+
 interface DataTableProps {
   headers: string[];
   data: Record<string, any>[];
   sortConfig: SortConfig | null;
   requestSort: (key: string) => void;
-  highlightedRows: boolean[];
+  highlightedRows: HighlightType[];
   currentPage: number;
   totalPages: number;
   setCurrentPage: (page: number) => void;
@@ -82,7 +84,8 @@ export function DataTable({
                   onClick={() => setSelectedRow(row)}
                   className={cn(
                     'cursor-pointer',
-                    highlightedRows[rowIndex] && 'bg-destructive/10 hover:bg-destructive/20'
+                    highlightedRows[rowIndex] === 'red' && 'bg-destructive/10 hover:bg-destructive/20',
+                    highlightedRows[rowIndex] === 'green' && 'bg-green-500/10 hover:bg-green-500/20'
                   )}
                 >
                   {displayHeaders.map((header) => (

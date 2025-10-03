@@ -18,7 +18,7 @@ const HighlightAnomalousRowsInputSchema = z.object({
 export type HighlightAnomalousRowsInput = z.infer<typeof HighlightAnomalousRowsInputSchema>;
 
 const HighlightAnomalousRowsOutputSchema = z.object({
-  highlightedRows: z.array(z.boolean()).describe('An array of booleans indicating whether each row should be highlighted.'),
+  highlightedRows: z.array(z.enum(['red', 'green', 'none'])).describe("An array of strings indicating whether each row should be highlighted and with which color ('red', 'green', or 'none')."),
 });
 export type HighlightAnomalousRowsOutput = z.infer<typeof HighlightAnomalousRowsOutputSchema>;
 
@@ -30,13 +30,17 @@ const prompt = ai.definePrompt({
   name: 'highlightAnomalousRowsPrompt',
   input: {schema: HighlightAnomalousRowsInputSchema},
   output: {schema: HighlightAnomalousRowsOutputSchema},
-  prompt: `You are an AI assistant that helps determine whether rows in a dataset should be highlighted as anomalous.
+  prompt: `You are an AI assistant that helps determine whether rows in a dataset should be highlighted based on their 'AnomalyScore'.
 
-You will receive an array of data rows and a flag indicating whether highlighting is enabled. The rows may or may not have a column called \"IsAnomalous\".
+You will receive an array of data rows and a flag indicating whether highlighting is enabled.
 
-Your task is to analyze each row and determine, based on the \"IsAnomalous\" field (if present), whether it should be highlighted. If the \"IsAnomalous\" field is not present, default to no highlighting. Respect the isHighlightingEnabled flag.
+Your task is to analyze each row's 'AnomalyScore'.
+- If highlighting is enabled:
+  - If 'AnomalyScore' > 0.5, the row should be highlighted 'red'.
+  - If 'AnomalyScore' <= 0.5, the row should be highlighted 'green'.
+- If a row does not have an 'AnomalyScore' or if highlighting is disabled, it should be 'none'.
 
-Return an array of booleans, where each boolean corresponds to a row in the input data. If highlighting is enabled and a row's \"IsAnomalous\" field is true, the corresponding boolean should be true. Otherwise, it should be false.
+Return an array of strings ('red', 'green', or 'none'), where each string corresponds to a row in the input data.
 
 Here's the input data:
 
