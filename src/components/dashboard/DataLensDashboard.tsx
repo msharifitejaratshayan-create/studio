@@ -26,7 +26,6 @@ import {
 } from 'recharts';
 
 
-import { highlightAnomalousRows } from '@/ai/flows/highlight-anomalous-rows-based-on-ai';
 import { exportToCsv, parseCsv } from '@/lib/csv';
 import { useToast } from '@/hooks/use-toast';
 
@@ -157,8 +156,6 @@ export function DataLensDashboard() {
   const [threadsLoading, setThreadsLoading] = useState(false);
   const [nonThreadsLoading, setNonThreadsLoading] = useState(false);
   
-  const [isAiProcessing, setIsAiProcessing] = useState(false);
-
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -264,32 +261,19 @@ export function DataLensDashboard() {
   
 
   useEffect(() => {
-    const processHighlighting = async () => {
-      if (combinedData && highlightEnabled && combinedData.data.length > 0) {
-        setIsAiProcessing(true);
-        try {
-          const result = await highlightAnomalousRows({
-            dataRows: combinedData.data,
-            isHighlightingEnabled: highlightEnabled,
-          });
-          setHighlightedRows(result.highlightedRows);
-        } catch (aiError) {
-          console.error('AI processing error:', aiError);
-          toast({
-            variant: 'destructive',
-            title: 'AI Highlighting Error',
-            description: 'Could not apply AI-powered highlighting.',
-          });
-          setHighlightedRows([]);
-        } finally {
-          setIsAiProcessing(false);
+    if (combinedData && highlightEnabled && combinedData.data.length > 0) {
+      const newHighlightedRows = combinedData.data.map(row => {
+        const score = parseFloat(row['AnomalyScore']);
+        if (isNaN(score)) {
+          return 'none';
         }
-      } else {
-        setHighlightedRows([]);
-      }
-    };
-    processHighlighting();
-  }, [combinedData, highlightEnabled, toast]);
+        return score > 0.5 ? 'red' : 'green';
+      });
+      setHighlightedRows(newHighlightedRows);
+    } else {
+      setHighlightedRows([]);
+    }
+  }, [combinedData, highlightEnabled]);
 
   const filteredData = useMemo(() => {
     if (!combinedData) return [];
@@ -413,14 +397,6 @@ export function DataLensDashboard() {
               <p className="text-muted-foreground">
                 Displaying {filteredData.length} of {combinedData?.data.length || 0} total rows.
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {isAiProcessing && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>AI is analyzing...</span>
-                </div>
-              )}
             </div>
           </div>
           
