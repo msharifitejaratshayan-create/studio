@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowUpDown } from 'lucide-react';
 import {
   Table,
@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DataTablePagination } from './DataTablePagination';
+import { DataTableRowDetails } from './DataTableRowDetails';
 
 type SortConfig = {
   key: string;
@@ -44,6 +45,14 @@ export function DataTable({
   rowsPerPage,
   totalRows
 }: DataTableProps) {
+  const [selectedRow, setSelectedRow] = useState<Record<string, any> | null>(null);
+
+  const displayHeaders = ['input', 'AnomalyScore'].filter(h => headers.includes(h));
+
+  if (displayHeaders.length === 0 && data.length > 0) {
+      displayHeaders.push(...headers.slice(0, 2));
+  }
+
 
   return (
     <div className="w-full">
@@ -51,7 +60,7 @@ export function DataTable({
         <Table>
           <TableHeader>
             <TableRow>
-              {headers.map((header) => (
+              {displayHeaders.map((header) => (
                 <TableHead key={header}>
                   <Button
                     variant="ghost"
@@ -70,11 +79,13 @@ export function DataTable({
               data.map((row, rowIndex) => (
                 <TableRow
                   key={rowIndex}
+                  onClick={() => setSelectedRow(row)}
                   className={cn(
+                    'cursor-pointer',
                     highlightedRows[rowIndex] && 'bg-destructive/10 hover:bg-destructive/20'
                   )}
                 >
-                  {headers.map((header) => (
+                  {displayHeaders.map((header) => (
                     <TableCell key={header} className="max-w-[200px] truncate">
                       {String(row[header])}
                     </TableCell>
@@ -83,7 +94,7 @@ export function DataTable({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={headers.length} className="h-24 text-center">
+                <TableCell colSpan={displayHeaders.length} className="h-24 text-center">
                   No results found.
                 </TableCell>
               </TableRow>
@@ -100,6 +111,12 @@ export function DataTable({
             totalRows={totalRows}
         />
       )}
+      <DataTableRowDetails 
+        row={selectedRow}
+        allHeaders={headers}
+        open={!!selectedRow}
+        onOpenChange={(isOpen) => !isOpen && setSelectedRow(null)}
+      />
     </div>
   );
 }
