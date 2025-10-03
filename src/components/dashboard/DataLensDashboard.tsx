@@ -454,7 +454,7 @@ export function DataLensDashboard() {
                     <RechartsBarChart data={anomalyScoreData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
-                      <YAxis scale="log" domain={['auto', 'auto']} allowDataOverflow />
+                      <YAxis />
                       <Tooltip />
                       <Legend />
                       <Bar dataKey="threads" stackId="a" name="Threads" fill={STACKED_COLORS[0]} />
