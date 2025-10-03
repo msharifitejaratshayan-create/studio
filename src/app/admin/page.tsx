@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, DragEvent } from 'react';
-import { useAuth, useFirebase, useFirestore } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -152,20 +152,24 @@ export default function AdminPage() {
 
   return (
     <main className="container mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <h1 className="text-3xl font-bold tracking-tight">Admin Console</h1>
-        {auth && (
-            <div>
-            {user ? (
-                <div className="flex items-center gap-4">
-                    <span className="text-sm text-muted-foreground">Signed in as {user.isAnonymous ? 'Anonymous' : user.uid}</span>
-                    <Button variant="outline" onClick={signOut}>Sign Out</Button>
+        <div className="flex-shrink-0">
+            {auth ? (
+                <div>
+                {user ? (
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-muted-foreground">Signed in as {user.isAnonymous ? 'Anonymous' : user.uid}</span>
+                        <Button variant="outline" onClick={signOut}>Sign Out</Button>
+                    </div>
+                ) : (
+                    <Button onClick={handleSignIn}>Sign In Anonymously</Button>
+                )}
                 </div>
             ) : (
-                <Button onClick={handleSignIn}>Sign In Anonymously</Button>
+              <div className="h-10 w-48 bg-muted rounded-md animate-pulse" /> 
             )}
-            </div>
-        )}
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-8 w-full">
