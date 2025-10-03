@@ -8,6 +8,7 @@ import {
   UploadCloud,
   PieChart,
   BarChart,
+  CheckCircle,
 } from 'lucide-react';
 import {
   Bar,
@@ -50,7 +51,7 @@ const ROWS_PER_PAGE = 50;
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))'];
 
 
-const FileUploader = ({ title, onFileUpload, isLoading, error }: { title: string, onFileUpload: (file: File) => void, isLoading: boolean, error: string | null }) => {
+const FileUploader = ({ title, onFileUpload, isLoading, error, hasData }: { title: string, onFileUpload: (file: File) => void, isLoading: boolean, error: string | null, hasData: boolean }) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDrag = (e: DragEvent<HTMLLabelElement>) => {
@@ -72,8 +73,32 @@ const FileUploader = ({ title, onFileUpload, isLoading, error }: { title: string
     }
   };
 
+  if (hasData) {
+    return (
+       <Card className="w-full shadow-lg border-2 border-primary/50">
+        <CardHeader className="text-center">
+            <div className="mx-auto bg-green-500/10 text-green-500 p-3 rounded-full w-fit mb-4">
+            <CheckCircle className="h-8 w-8" />
+            </div>
+            <CardTitle className="text-2xl font-bold">{title}</CardTitle>
+            <CardDescription>File loaded successfully.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors border-border hover:border-primary/50 hover:bg-muted">
+                <div className="flex flex-col items-center justify-center">
+                    <p className="text-sm text-muted-foreground">
+                    <span className="font-semibold">Click here</span> to upload a new file
+                    </p>
+                </div>
+                <input type="file" accept=".csv" onChange={(e) => e.target.files && onFileUpload(e.target.files[0])} className="hidden" />
+            </label>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
-    <Card className="w-full shadow-2xl">
+    <Card className="w-full shadow-lg">
       <CardHeader className="text-center">
         <div className="mx-auto bg-primary/10 text-primary p-3 rounded-full w-fit mb-4">
           <FileCode className="h-8 w-8" />
@@ -362,106 +387,105 @@ export function DataLensDashboard() {
     return bins;
   }, [combinedData]);
 
-
-  if (!threadsData && !nonThreadsData) {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center p-4 bg-background">
-        <div className="flex flex-col md:flex-row gap-8 w-full max-w-5xl">
-          <FileUploader title="Upload Threads CSV" onFileUpload={(file) => handleFileUpload(file, 'threads')} isLoading={threadsLoading} error={threadsError} />
-          <FileUploader title="Upload Non-Threads CSV" onFileUpload={(file) => handleFileUpload(file, 'non-threads')} isLoading={nonThreadsLoading} error={nonThreadsError} />
-        </div>
-      </div>
-    );
-  }
+  const hasAnyData = threadsData || nonThreadsData;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 flex flex-col gap-4">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">DataLens Dashboard</h1>
-          <p className="text-muted-foreground">
-            Displaying {filteredData.length} of {combinedData?.data.length || 0} total rows.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-           {isAiProcessing && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>AI is analyzing...</span>
+    <div className="p-4 sm:p-6 lg:p-8 flex flex-col gap-8">
+      <div className="flex flex-col md:flex-row gap-8 w-full">
+        <FileUploader title="Threads CSV" onFileUpload={(file) => handleFileUpload(file, 'threads')} isLoading={threadsLoading} error={threadsError} hasData={!!threadsData}/>
+        <FileUploader title="Non-Threads CSV" onFileUpload={(file) => handleFileUpload(file, 'non-threads')} isLoading={nonThreadsLoading} error={nonThreadsError} hasData={!!nonThreadsData} />
+      </div>
+
+      {hasAnyData && (
+        <>
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">DataLens Dashboard</h1>
+              <p className="text-muted-foreground">
+                Displaying {filteredData.length} of {combinedData?.data.length || 0} total rows.
+              </p>
             </div>
-          )}
-        </div>
-      </div>
-      
-       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-full lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Threads vs Non-Threads</CardTitle>
-            <PieChart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {pieChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-                <RechartsPieChart>
-                  <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                     {pieChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </RechartsPieChart>
-            </ResponsiveContainer>
-            ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">Please upload data</div>}
-          </CardContent>
-        </Card>
-        <Card className="col-span-full lg:col-span-5">
-           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Anomaly Score Distribution</CardTitle>
-            <BarChart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             {combinedData?.data.some(d => d['AnomalyScore']) ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <RechartsBarChart data={anomalyScoreData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">`AnomalyScore` column not found or empty.</div>}
-          </CardContent>
-        </Card>
-      </div>
+            <div className="flex items-center gap-2">
+              {isAiProcessing && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>AI is analyzing...</span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-full lg:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Threads vs Non-Threads</CardTitle>
+                <PieChart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {pieChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                    <RechartsPieChart>
+                      <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                        {pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </RechartsPieChart>
+                </ResponsiveContainer>
+                ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">Please upload data</div>}
+              </CardContent>
+            </Card>
+            <Card className="col-span-full lg:col-span-5">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Anomaly Score Distribution</CardTitle>
+                <BarChart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {combinedData?.data.some(d => d['AnomalyScore']) ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <RechartsBarChart data={anomalyScoreData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">`AnomalyScore` column not found or empty.</div>}
+              </CardContent>
+            </Card>
+          </div>
 
-      <DataTableToolbar
-        globalFilter={globalFilter}
-        setGlobalFilter={setGlobalFilter}
-        columnFilters={columnFilters}
-        setColumnFilters={setColumnFilters}
-        headers={combinedData?.headers || []}
-        onExport={handleExport}
-        highlightEnabled={highlightEnabled}
-        setHighlightEnabled={setHighlightEnabled}
-        onClear={handleClear}
-      />
+          <DataTableToolbar
+            globalFilter={globalFilter}
+            setGlobalFilter={setGlobalFilter}
+            columnFilters={columnFilters}
+            setColumnFilters={setColumnFilters}
+            headers={combinedData?.headers || []}
+            onExport={handleExport}
+            highlightEnabled={highlightEnabled}
+            setHighlightEnabled={setHighlightEnabled}
+            onClear={handleClear}
+          />
 
-      <Card>
-        <DataTable
-          headers={combinedData?.headers || []}
-          data={paginatedData}
-          sortConfig={sortConfig}
-          requestSort={requestSort}
-          highlightedRows={highlightedPaginatedRows}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          setCurrentPage={setCurrentPage}
-          rowsPerPage={ROWS_PER_PAGE}
-          totalRows={sortedData.length}
-        />
-      </Card>
+          <Card>
+            <DataTable
+              headers={combinedData?.headers || []}
+              data={paginatedData}
+              sortConfig={sortConfig}
+              requestSort={requestSort}
+              highlightedRows={highlightedPaginatedRows}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              setCurrentPage={setCurrentPage}
+              rowsPerPage={ROWS_PER_PAGE}
+              totalRows={sortedData.length}
+            />
+          </Card>
+        </>
+      )}
     </div>
   );
 }
