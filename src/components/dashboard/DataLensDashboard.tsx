@@ -49,6 +49,7 @@ type SortConfig = {
 const ROWS_PER_PAGE = 50;
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))'];
+const STACKED_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))'];
 
 
 const FileUploader = ({ title, onFileUpload, isLoading, error, hasData }: { title: string, onFileUpload: (file: File) => void, isLoading: boolean, error: string | null, hasData: boolean }) => {
@@ -373,14 +374,19 @@ export function DataLensDashboard() {
     
     const bins = Array.from({ length: 10 }, (_, i) => ({
       name: `${(i * 0.1).toFixed(1)}-${((i + 1) * 0.1).toFixed(1)}`,
-      count: 0
+      threads: 0,
+      nonThreads: 0,
     }));
 
     combinedData.data.forEach(row => {
       const score = parseFloat(row['AnomalyScore']);
       if (!isNaN(score) && score >= 0 && score <= 1) {
         const binIndex = Math.min(Math.floor(score * 10), 9);
-        bins[binIndex].count++;
+        if (row.__source === 'thread') {
+          bins[binIndex].threads++;
+        } else {
+          bins[binIndex].nonThreads++;
+        }
       }
     });
 
@@ -450,7 +456,9 @@ export function DataLensDashboard() {
                       <XAxis dataKey="name" />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" />
+                      <Legend />
+                      <Bar dataKey="threads" stackId="a" name="Threads" fill={STACKED_COLORS[0]} />
+                      <Bar dataKey="nonThreads" stackId="a" name="Non-Threads" fill={STACKED_COLORS[1]} />
                     </RechartsBarChart>
                   </ResponsiveContainer>
                 ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">`AnomalyScore` column not found or empty.</div>}
