@@ -6,7 +6,23 @@ import {
   FileCode,
   Loader2,
   UploadCloud,
+  PieChart,
+  BarChart,
 } from 'lucide-react';
+import {
+  Bar,
+  BarChart as RechartsBarChart,
+  Pie,
+  PieChart as RechartsPieChart,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+
 
 import { highlightAnomalousRows } from '@/ai/flows/highlight-anomalous-rows-based-on-ai';
 import { exportToCsv, parseCsv } from '@/lib/csv';
@@ -31,75 +47,12 @@ type SortConfig = {
 
 const ROWS_PER_PAGE = 50;
 
-export function DataLensDashboard() {
-  const [csvData, setCsvData] = useState<CsvData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
-  const [isAiProcessing, setIsAiProcessing] = useState(false);
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))'];
+
+
+const FileUploader = ({ title, onFileUpload, isLoading, error }: { title: string, onFileUpload: (file: File) => void, isLoading: boolean, error: string | null }) => {
   const [isDragging, setIsDragging] = useState(false);
 
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
-  const [globalFilter, setGlobalFilter] = useState('');
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
-  const [currentPage, setCurrentPage] = useState(1);
-  
-  const [highlightEnabled, setHighlightEnabled] = useState(false);
-  const [highlightedRows, setHighlightedRows] = useState<boolean[]>([]);
-
-  const { toast } = useToast();
-
-  const handleFileUpload = useCallback((file: File) => {
-    if (!file) return;
-    if (file.type !== 'text/csv') {
-      setError('Invalid file type. Please upload a CSV file.');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        setIsParsing(true);
-        const text = e.target?.result as string;
-        const parsedData = parseCsv(text);
-        setCsvData(parsedData);
-        setCurrentPage(1);
-        setSortConfig(null);
-        setGlobalFilter('');
-        setColumnFilters({});
-        toast({
-          title: "Upload successful",
-          description: `Loaded ${parsedData.data.length} rows and ${parsedData.headers.length} columns.`,
-        });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred during parsing.');
-        setCsvData(null);
-        toast({
-          variant: 'destructive',
-          title: "Parsing Error",
-          description: err instanceof Error ? err.message : 'Could not parse the CSV file.',
-        });
-      } finally {
-        setIsLoading(false);
-        setIsParsing(false);
-      }
-    };
-    reader.onerror = () => {
-      setError('Failed to read the file.');
-      setIsLoading(false);
-      setIsParsing(false);
-       toast({
-          variant: 'destructive',
-          title: "File Read Error",
-          description: 'There was an issue reading your file.',
-        });
-    };
-    reader.readAsText(file);
-  }, [toast]);
-  
   const handleDrag = (e: DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -115,18 +68,179 @@ export function DataLensDashboard() {
     e.stopPropagation();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files[0]);
+      onFileUpload(e.dataTransfer.files[0]);
     }
   };
 
+  return (
+    <Card className="w-full shadow-2xl">
+      <CardHeader className="text-center">
+        <div className="mx-auto bg-primary/10 text-primary p-3 rounded-full w-fit mb-4">
+          <FileCode className="h-8 w-8" />
+        </div>
+        <CardTitle className="text-2xl font-bold">{title}</CardTitle>
+        <CardDescription>Upload a CSV file to begin analysis</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <label
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+          className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 hover:bg-muted'}`}
+        >
+          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+            <UploadCloud className={`w-10 h-10 mb-3 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+            <p className={`mb-2 text-sm ${isDragging ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className="font-semibold">Click to upload</span> or drag and drop
+            </p>
+            <p className="text-xs text-muted-foreground">CSV files up to 50MB</p>
+          </div>
+          <input type="file" accept=".csv" onChange={(e) => e.target.files && onFileUpload(e.target.files[0])} className="hidden" />
+        </label>
+        {isLoading && (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-center text-muted-foreground">
+              {"Uploading & Parsing..."}
+            </p>
+            <Progress value={50} />
+          </div>
+        )}
+        {error && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Upload Failed</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+export function DataLensDashboard() {
+  const [threadsData, setThreadsData] = useState<CsvData | null>(null);
+  const [nonThreadsData, setNonThreadsData] = useState<CsvData | null>(null);
+  
+  const [threadsError, setThreadsError] = useState<string | null>(null);
+  const [nonThreadsError, setNonThreadsError] = useState<string | null>(null);
+
+  const [threadsLoading, setThreadsLoading] = useState(false);
+  const [nonThreadsLoading, setNonThreadsLoading] = useState(false);
+  
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
+
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const [highlightEnabled, setHighlightEnabled] = useState(false);
+  const [highlightedRows, setHighlightedRows] = useState<boolean[]>([]);
+
+  const { toast } = useToast();
+
+  const handleFileUpload = useCallback((file: File, type: 'threads' | 'non-threads') => {
+    if (!file) return;
+    if (file.type !== 'text/csv') {
+      const errorMsg = 'Invalid file type. Please upload a CSV file.';
+      if (type === 'threads') setThreadsError(errorMsg);
+      else setNonThreadsError(errorMsg);
+      return;
+    }
+
+    if (type === 'threads') {
+      setThreadsLoading(true);
+      setThreadsError(null);
+    } else {
+      setNonThreadsLoading(true);
+      setNonThreadsError(null);
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const parsedData = parseCsv(text);
+        
+        if (type === 'threads') {
+          setThreadsData(parsedData);
+        } else {
+          setNonThreadsData(parsedData);
+        }
+
+        setCurrentPage(1);
+        setSortConfig(null);
+        setGlobalFilter('');
+        setColumnFilters({});
+        toast({
+          title: "Upload successful",
+          description: `Loaded ${parsedData.data.length} rows and ${parsedData.headers.length} columns for ${type}.`,
+        });
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred during parsing.';
+        if (type === 'threads') {
+          setThreadsError(errorMsg);
+          setThreadsData(null);
+        } else {
+          setNonThreadsError(errorMsg);
+          setNonThreadsData(null);
+        }
+        toast({
+          variant: 'destructive',
+          title: "Parsing Error",
+          description: err instanceof Error ? err.message : `Could not parse the ${type} CSV file.`,
+        });
+      } finally {
+        if (type === 'threads') setThreadsLoading(false);
+        else setNonThreadsLoading(false);
+      }
+    };
+    reader.onerror = () => {
+      const errorMsg = 'Failed to read the file.';
+       if (type === 'threads') {
+          setThreadsError(errorMsg);
+          setThreadsLoading(false);
+        } else {
+          setNonThreadsError(errorMsg);
+          setNonThreadsLoading(false);
+        }
+       toast({
+          variant: 'destructive',
+          title: "File Read Error",
+          description: `There was an issue reading your ${type} file.`,
+        });
+    };
+    reader.readAsText(file);
+  }, [toast]);
+  
+  const combinedData = useMemo(() => {
+    if (!threadsData && !nonThreadsData) return null;
+    
+    const threads = threadsData?.data.map(d => ({...d, __source: 'thread'})) || [];
+    const nonThreads = nonThreadsData?.data.map(d => ({...d, __source: 'non-thread'})) || [];
+
+    const allData = [...threads, ...nonThreads];
+    
+    const allHeaders = new Set<string>();
+    threadsData?.headers.forEach(h => allHeaders.add(h));
+    nonThreadsData?.headers.forEach(h => allHeaders.add(h));
+    
+    return {
+      headers: Array.from(allHeaders),
+      data: allData
+    };
+
+  }, [threadsData, nonThreadsData]);
+  
 
   useEffect(() => {
     const processHighlighting = async () => {
-      if (csvData && highlightEnabled && csvData.data.length > 0) {
+      if (combinedData && highlightEnabled && combinedData.data.length > 0) {
         setIsAiProcessing(true);
         try {
           const result = await highlightAnomalousRows({
-            dataRows: csvData.data,
+            dataRows: combinedData.data,
             isHighlightingEnabled: highlightEnabled,
           });
           setHighlightedRows(result.highlightedRows);
@@ -146,11 +260,11 @@ export function DataLensDashboard() {
       }
     };
     processHighlighting();
-  }, [csvData, highlightEnabled, toast]);
+  }, [combinedData, highlightEnabled, toast]);
 
   const filteredData = useMemo(() => {
-    if (!csvData) return [];
-    return csvData.data.filter((row) => {
+    if (!combinedData) return [];
+    return combinedData.data.filter((row) => {
       const matchesGlobal = globalFilter
         ? Object.values(row).some((val) =>
             String(val).toLowerCase().includes(globalFilter.toLowerCase())
@@ -164,7 +278,7 @@ export function DataLensDashboard() {
 
       return matchesGlobal && matchesColumns;
     });
-  }, [csvData, globalFilter, columnFilters]);
+  }, [combinedData, globalFilter, columnFilters]);
 
   const sortedData = useMemo(() => {
     let sortableData = [...filteredData];
@@ -198,78 +312,64 @@ export function DataLensDashboard() {
   }, [sortedData, currentPage]);
   
   const highlightedPaginatedRows = useMemo(() => {
-    if (!highlightEnabled || highlightedRows.length === 0 || !csvData) return [];
-    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-    const endIndex = startIndex + ROWS_PER_PAGE;
+    if (!highlightEnabled || highlightedRows.length === 0 || !combinedData) return [];
     
-    // Map paginated data back to original indices to get correct highlight status
     return paginatedData.map(paginatedRow => {
-      const originalIndex = csvData.data.findIndex(originalRow => originalRow === paginatedRow);
+      const originalIndex = combinedData.data.findIndex(originalRow => originalRow === paginatedRow);
       return highlightedRows[originalIndex] || false;
     });
 
-  }, [paginatedData, highlightedRows, highlightEnabled, csvData, currentPage]);
-
+  }, [paginatedData, highlightedRows, highlightEnabled, combinedData]);
 
   const totalPages = Math.ceil(sortedData.length / ROWS_PER_PAGE);
 
   const handleExport = () => {
-    if (csvData) {
-      exportToCsv('filtered_data.csv', csvData.headers, sortedData);
+    if (combinedData) {
+      exportToCsv('filtered_data.csv', combinedData.headers, sortedData);
     }
   };
   
   const handleClear = () => {
-    setCsvData(null);
-    setError(null);
-    setIsLoading(false);
+    setThreadsData(null);
+    setNonThreadsData(null);
+    setThreadsError(null);
+    setNonThreadsError(null);
   }
+  
+  const pieChartData = useMemo(() => {
+    return [
+      { name: 'Threads', value: threadsData?.data.length || 0 },
+      { name: 'Non-Threads', value: nonThreadsData?.data.length || 0 }
+    ].filter(d => d.value > 0);
+  }, [threadsData, nonThreadsData]);
 
-  if (!csvData) {
+  const anomalyScoreData = useMemo(() => {
+    if (!combinedData) return [];
+    
+    const bins = Array.from({ length: 10 }, (_, i) => ({
+      name: `${(i * 0.1).toFixed(1)}-${((i + 1) * 0.1).toFixed(1)}`,
+      count: 0
+    }));
+
+    combinedData.data.forEach(row => {
+      const score = parseFloat(row['AnomalyScore']);
+      if (!isNaN(score) && score >= 0 && score <= 1) {
+        const binIndex = Math.min(Math.floor(score * 10), 9);
+        bins[binIndex].count++;
+      }
+    });
+
+    return bins;
+  }, [combinedData]);
+
+
+  if (!threadsData && !nonThreadsData) {
     return (
-      <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
-        <Card className="w-full max-w-xl mx-auto shadow-2xl">
-          <CardHeader className="text-center">
-            <div className="mx-auto bg-primary/10 text-primary p-3 rounded-full w-fit mb-4">
-               <FileCode className="h-8 w-8" />
-            </div>
-            <CardTitle className="text-2xl font-bold">DataLens Dashboard</CardTitle>
-            <CardDescription>Upload a CSV file to begin analysis</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <label
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-              className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 hover:bg-muted'}`}
-            >
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <UploadCloud className={`w-10 h-10 mb-3 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
-                <p className={`mb-2 text-sm ${isDragging ? 'text-primary' : 'text-muted-foreground'}`}>
-                  <span className="font-semibold">Click to upload</span> or drag and drop
-                </p>
-                <p className="text-xs text-muted-foreground">CSV files up to 50MB</p>
-              </div>
-              <input type="file" accept=".csv" onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])} className="hidden" />
-            </label>
-            {isLoading && (
-              <div className="mt-4 space-y-2">
-                <p className="text-sm text-center text-muted-foreground">
-                  {isParsing ? "Parsing your data..." : "Uploading file..."}
-                </p>
-                <Progress value={isParsing ? 50 : 25} />
-              </div>
-            )}
-            {error && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Upload Failed</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex min-h-screen w-full items-center justify-center p-4 bg-background">
+        <div className="flex flex-col md:flex-row gap-8 w-full max-w-5xl">
+          <FileUploader title="Upload Threads CSV" onFileUpload={(file) => handleFileUpload(file, 'threads')} isLoading={threadsLoading} error={threadsError} />
+          <FileUploader title="Upload Non-Threads CSV" onFileUpload={(file) => handleFileUpload(file, 'non-threads')} isLoading={nonThreadsLoading} error={nonThreadsError} />
+        </div>
       </div>
     );
   }
@@ -280,7 +380,7 @@ export function DataLensDashboard() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">DataLens Dashboard</h1>
           <p className="text-muted-foreground">
-            Displaying {filteredData.length} of {csvData.data.length} rows.
+            Displaying {filteredData.length} of {combinedData?.data.length || 0} total rows.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -293,12 +393,55 @@ export function DataLensDashboard() {
         </div>
       </div>
       
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-full lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Threads vs Non-Threads</CardTitle>
+            <PieChart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {pieChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+                <RechartsPieChart>
+                  <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                     {pieChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </RechartsPieChart>
+            </ResponsiveContainer>
+            ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">Please upload data</div>}
+          </CardContent>
+        </Card>
+        <Card className="col-span-full lg:col-span-5">
+           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Anomaly Score Distribution</CardTitle>
+            <BarChart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+             {combinedData?.data.some(d => d['AnomalyScore']) ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <RechartsBarChart data={anomalyScoreData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">`AnomalyScore` column not found or empty.</div>}
+          </CardContent>
+        </Card>
+      </div>
+
       <DataTableToolbar
         globalFilter={globalFilter}
         setGlobalFilter={setGlobalFilter}
         columnFilters={columnFilters}
         setColumnFilters={setColumnFilters}
-        headers={csvData.headers}
+        headers={combinedData?.headers || []}
         onExport={handleExport}
         highlightEnabled={highlightEnabled}
         setHighlightEnabled={setHighlightEnabled}
@@ -307,7 +450,7 @@ export function DataLensDashboard() {
 
       <Card>
         <DataTable
-          headers={csvData.headers}
+          headers={combinedData?.headers || []}
           data={paginatedData}
           sortConfig={sortConfig}
           requestSort={requestSort}
