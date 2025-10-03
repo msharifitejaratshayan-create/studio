@@ -47,7 +47,7 @@ export function DataTable({
 }: DataTableProps) {
   const [selectedRow, setSelectedRow] = useState<Record<string, any> | null>(null);
 
-  const displayHeaders = ['input', 'AnomalyScore'].filter(h => headers.includes(h));
+  const displayHeaders = ['query', 'AnomalyScore'].filter(h => headers.includes(h));
 
   if (displayHeaders.length === 0 && data.length > 0) {
       displayHeaders.push(...headers.slice(0, 2));
