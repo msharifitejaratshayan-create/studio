@@ -21,8 +21,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-import { useFirestore, useDoc } from '@/firebase';
-
 import { exportToCsv, parseCsv } from '@/lib/csv';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,7 +29,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 import { DataTable } from './DataTable';
 import { DataTableToolbar } from './DataTableToolbar';
-import { collection, doc } from 'firebase/firestore';
 
 type CsvData = {
   headers: string[];
@@ -51,16 +48,10 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))'];
 const STACKED_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))'];
 
 export function DataLensDashboard() {
-  const firestore = useFirestore();
-  
-  const threadsRef = useMemo(() => firestore ? doc(collection(firestore, 'csv_data'), 'threads') : null, [firestore]);
-  const nonThreadsRef = useMemo(() => firestore ? doc(collection(firestore, 'csv_data'), 'non-threads') : null, [firestore]);
-
-  const { data: threadsDoc, loading: threadsLoading, error: threadsError } = useDoc(threadsRef);
-  const { data: nonThreadsDoc, loading: nonThreadsLoading, error: nonThreadsError } = useDoc(nonThreadsRef);
-
   const [threadsData, setThreadsData] = useState<CsvData | null>(null);
   const [nonThreadsData, setNonThreadsData] = useState<CsvData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -73,28 +64,46 @@ export function DataLensDashboard() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (threadsDoc?.content) {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setThreadsData(parseCsv(threadsDoc.content));
-      } catch (e) {
-        toast({ variant: 'destructive', title: "Error parsing threads.csv", description: e instanceof Error ? e.message : 'Unknown error' });
-      }
-    } else {
-      setThreadsData(null);
-    }
-  }, [threadsDoc, toast]);
+        const [threadsRes, nonThreadsRes] = await Promise.all([
+          fetch('http://10.30.30.94/data/threads.csv'),
+          fetch('http://10.30.30.94/data/nonthreads.csv')
+        ]);
 
-  useEffect(() => {
-    if (nonThreadsDoc?.content) {
-      try {
-        setNonThreadsData(parseCsv(nonThreadsDoc.content));
+        if (threadsRes.ok) {
+          const threadsCsv = await threadsRes.text();
+          setThreadsData(parseCsv(threadsCsv));
+        } else {
+            console.warn('Could not load threads.csv. The resource may not be available.');
+        }
+
+        if (nonThreadsRes.ok) {
+          const nonThreadsCsv = await nonThreadsRes.text();
+          setNonThreadsData(parseCsv(nonThreadsCsv));
+        } else {
+            console.warn('Could not load nonthreads.csv. The resource may not be available.');
+        }
+
       } catch (e) {
-        toast({ variant: 'destructive', title: "Error parsing non-threads.csv", description: e instanceof Error ? e.message : 'Unknown error' });
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred while fetching data.';
+        setError(`Failed to fetch CSV data. Please check the console for more details. Error: ${errorMessage}`);
+        toast({
+            variant: 'destructive',
+            title: "Error fetching data",
+            description: errorMessage
+        });
+      } finally {
+        setLoading(false);
       }
-    } else {
-        setNonThreadsData(null);
-    }
-  }, [nonThreadsDoc, toast]);
+    };
+
+    fetchData();
+  }, [toast]);
+
 
   const combinedData = useMemo(() => {
     if (!threadsData && !nonThreadsData) return null;
@@ -198,8 +207,6 @@ export function DataLensDashboard() {
   };
   
   const handleClear = () => {
-    // This function will be more complex with firestore, maybe for deleting docs.
-    // For now, we just clear local state.
     setThreadsData(null);
     setNonThreadsData(null);
     toast({ title: "Local data cleared." });
@@ -236,10 +243,7 @@ export function DataLensDashboard() {
     return bins;
   }, [combinedData]);
 
-  const isLoading = threadsLoading || nonThreadsLoading;
-  const dataError = threadsError || nonThreadsError;
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="p-8 flex justify-center items-center h-screen">
           <div className="flex flex-col items-center gap-4">
@@ -250,26 +254,26 @@ export function DataLensDashboard() {
     );
   }
 
-  if (dataError) {
+  if (error) {
       return (
           <div className="p-8 flex justify-center items-center h-screen">
               <Alert variant="destructive" className="max-w-lg">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Error Loading Data</AlertTitle>
-                <AlertDescription>{dataError.message || 'An unknown error occurred while fetching data from the database.'}</AlertDescription>
+                <AlertDescription>{error}</AlertDescription>
               </Alert>
           </div>
       )
   }
   
-  if (!threadsDoc?.content && !nonThreadsDoc?.content) {
+  if (!combinedData || combinedData.data.length === 0) {
       return (
            <div className="p-8 flex justify-center items-center h-screen">
               <Alert className="max-w-lg">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>No Data Found</AlertTitle>
                 <AlertDescription>
-                    No CSV data has been uploaded yet. Please go to the <a href="/admin" className="underline text-primary">Admin Page</a> to upload the `threads.csv` and `non-threads.csv` files.
+                    Could not load CSV data from the provided URLs. Please ensure the data sources are available and accessible.
                 </AlertDescription>
               </Alert>
           </div>
