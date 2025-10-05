@@ -1,5 +1,9 @@
-import { redirect } from 'next/navigation';
+import { DataLensDashboard } from '@/components/dashboard/DataLensDashboard';
 
 export default function Home() {
-  redirect('/security');
+  return (
+    <main className="min-h-screen w-full">
+      <DataLensDashboard />
+    </main>
+  );
 }

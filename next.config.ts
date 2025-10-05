@@ -1,6 +1,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  basePath: '/security',
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
