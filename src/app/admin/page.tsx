@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent, useContext } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,24 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { createUser, getUsers, User } from '@/lib/api';
-import { Loader2, UserPlus, Users, LogIn, LogOut } from 'lucide-react';
-
-// Hardcoded credentials for admin access
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'kX3ZyTAUNl4Cvkj8mftnYVozg7VOn8tMH9nV0pqJ';
+import { Loader2, UserPlus, Users, LogOut } from 'lucide-react';
+import { AuthContext } from '@/context/AuthContext';
 
 export default function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-
   const [users, setUsers] = useState<User[]>([]);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(true);
   const { toast } = useToast();
+  const authContext = useContext(AuthContext);
 
   const fetchUsers = async () => {
     setIsFetchingUsers(true);
@@ -44,26 +37,11 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchUsers();
-    }
-  }, [isAuthenticated]);
-
-  const handleLogin = (e: FormEvent) => {
-    e.preventDefault();
-    if (loginUsername === ADMIN_USERNAME && loginPassword === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      setLoginError('');
-      setLoginUsername('');
-      setLoginPassword('');
-    } else {
-      setLoginError('Invalid username or password.');
-      setIsAuthenticated(false);
-    }
-  };
+    fetchUsers();
+  }, []);
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
+    authContext?.logout();
   };
 
   const handleCreateUser = async (e: FormEvent) => {
@@ -88,53 +66,6 @@ export default function AdminPage() {
       setIsLoading(false);
     }
   };
-
-  if (!isAuthenticated) {
-    return (
-      <main className="flex justify-center items-center min-h-screen p-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <LogIn /> Admin Login
-            </CardTitle>
-            <CardDescription>Please enter your credentials to access the admin panel.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="login-username">Username</Label>
-                <Input
-                  id="login-username"
-                  type="text"
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="admin"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="login-password">Password</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-              {loginError && (
-                <p className="text-sm font-medium text-destructive">{loginError}</p>
-              )}
-              <Button type="submit" className="w-full">
-                Sign In
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </main>
-    );
-  }
 
   return (
     <main className="p-4 sm:p-6 lg:p-8">
