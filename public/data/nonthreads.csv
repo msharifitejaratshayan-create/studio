@@ -1,6 +1,6 @@
 query,AnomalyScore
-"flights from SFO to LAX",0.05
-"weather in New York",0.02
-"best pizza places near me",0.95
-"how to tie a tie",0.01
-"world population",0.03
+"user login",0.05
+"file downloaded",0.1
+"email sent",0.02
+"viewed dashboard",0.01
+"ran report",0.15

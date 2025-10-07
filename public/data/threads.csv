@@ -1,4 +1,6 @@
 query,AnomalyScore
-"What is the meaning of life?",0.1
-"How to bake a cake?",0.8
-"Latest news on AI",0.2
+"logon from new device",0.1
+"multiple failed login attempts",0.9
+"password change",0.2
+"file access from unusual location",0.8
+"data exfiltration attempt",1.0
