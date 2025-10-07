@@ -7,8 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { createUser, getUsers, User } from '@/lib/api';
-import { Loader2, UserPlus, Users, LogIn, LogOut } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { createUser, getUsers, User, deleteUser } from '@/lib/api';
+import { Loader2, UserPlus, Users, LogIn, LogOut, Trash2 } from 'lucide-react';
 
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = 'kX3ZyTAUNl4Cvkj8mftnYVozg7VOn8tMH9nV0pqJ';
@@ -93,6 +104,23 @@ export default function AdminPage() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    try {
+      await deleteUser(userId);
+      toast({
+        title: 'User Deleted',
+        description: 'The user has been successfully removed.',
+      });
+      await fetchUsers();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error deleting user',
+        description: error.message || 'An unexpected error occurred.',
+      });
     }
   };
   
@@ -210,12 +238,13 @@ export default function AdminPage() {
                             <TableRow>
                             <TableHead>ID</TableHead>
                             <TableHead>Username</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isFetchingUsers ? (
                                 <TableRow>
-                                    <TableCell colSpan={2} className="h-24 text-center">
+                                    <TableCell colSpan={3} className="h-24 text-center">
                                         <div className="flex justify-center items-center gap-2">
                                             <Loader2 className="animate-spin text-muted-foreground" />
                                             <span>Loading users...</span>
@@ -227,11 +256,34 @@ export default function AdminPage() {
                                     <TableRow key={user.id}>
                                     <TableCell className="font-mono text-xs">{user.id}</TableCell>
                                     <TableCell>{user.username}</TableCell>
+                                    <TableCell className="text-right">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="sm" disabled={user.username === 'admin'}>
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete the user "{user.username}".
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>
+                                                        Delete
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                                    <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
                                     No users found.
                                     </TableCell>
                                 </TableRow>

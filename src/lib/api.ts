@@ -53,6 +53,29 @@ export async function createUser(username: string, password: string): Promise<Us
 }
 
 /**
+ * Deletes a user by their ID. Requires admin credentials.
+ * @param userId The ID of the user to delete.
+ * @returns A promise that resolves to a success message.
+ */
+export async function deleteUser(userId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+            'client-id': API_CLIENT_ID,
+            'client-secret': API_CLIENT_SECRET,
+        },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred during user deletion.' }));
+        throw new Error(errorData.detail || 'Failed to delete user.');
+    }
+
+    return response.json();
+}
+
+
+/**
  * Logs in a user and retrieves an access token.
  * @param username The user's username.
  * @param password The user's password.
