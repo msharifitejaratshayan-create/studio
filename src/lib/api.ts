@@ -16,8 +16,8 @@ export interface User {
 export async function getUsers(): Promise<User[]> {
     const response = await fetch(`${API_BASE_URL}/users/`, {
         headers: {
-            'client_id': API_CLIENT_ID,
-            'client_secret': API_CLIENT_SECRET,
+            'client-id': API_CLIENT_ID,
+            'client-secret': API_CLIENT_SECRET,
         }
     });
     if (!response.ok) {
@@ -38,8 +38,8 @@ export async function createUser(username: string, password: string): Promise<Us
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'client_id': API_CLIENT_ID,
-            'client_secret': API_CLIENT_SECRET,
+            'client-id': API_CLIENT_ID,
+            'client-secret': API_CLIENT_SECRET,
         },
         body: JSON.stringify({ username, password }),
     });
