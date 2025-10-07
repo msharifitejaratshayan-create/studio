@@ -1,6 +1,7 @@
 // This file contains helpers for interacting with the FastAPI backend.
 
 const API_BASE_URL = 'http://10.30.30.92:8000';
+const API_USERS_URL = "http://10.30.30.92:8000/users/"
 const API_CLIENT_ID = 'admin';
 const API_CLIENT_SECRET = 'kX3ZyTAUNl4Cvkj8mftnYVozg7VOn8tMH9nV0pqJ';
 
@@ -16,8 +17,8 @@ export interface User {
 export async function getUsers(): Promise<User[]> {
     const response = await fetch(`${API_BASE_URL}/users/`, {
         headers: {
-            'client-id': API_CLIENT_ID,
-            'client-secret': API_CLIENT_SECRET,
+            'client_id': API_CLIENT_ID,
+            'client_secret': API_CLIENT_SECRET,
         }
     });
     if (!response.ok) {
@@ -38,8 +39,8 @@ export async function createUser(username: string, password: string): Promise<Us
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'client-id': API_CLIENT_ID,
-            'client-secret': API_CLIENT_SECRET,
+            'client_id': API_CLIENT_ID,
+            'client_secret': API_CLIENT_SECRET,
         },
         body: JSON.stringify({ username, password }),
     });
@@ -61,8 +62,8 @@ export async function deleteUser(userId: number): Promise<{ message: string }> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
         method: 'DELETE',
         headers: {
-            'client-id': API_CLIENT_ID,
-            'client-secret': API_CLIENT_SECRET,
+            'client_id': API_CLIENT_ID,
+            'client_secret': API_CLIENT_SECRET,
         },
     });
 
