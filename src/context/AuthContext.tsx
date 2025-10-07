@@ -1,55 +1,79 @@
 "use client";
 
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { loginUser } from '@/lib/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (user: string, pass: string) => boolean;
+  login: (user: string, pass: string) => Promise<boolean>;
   logout: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'kX3ZyTAUNl4Cvkj8mftnYVozg7VOn8tMH9nV0pqJ';
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('isAuthenticated') === 'true';
+      return !!sessionStorage.getItem('accessToken');
     }
     return false;
   });
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
-    if (!isAuthenticated && pathname !== '/login') {
-      router.push('/login');
-    } else if (isAuthenticated && pathname === '/login') {
-      router.push('/');
-    }
-  }, [isAuthenticated, pathname, router]);
+  const isProtectedRoute = !['/login', '/admin'].some(path => pathname.startsWith(path));
 
-  const login = (user: string, pass: string) => {
-    if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
-      sessionStorage.setItem('isAuthenticated', 'true');
-      setIsAuthenticated(true);
+  const checkAuth = useCallback(() => {
+    const token = sessionStorage.getItem('accessToken');
+    setIsAuthenticated(!!token);
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+    window.addEventListener('storage', checkAuth);
+    return () => {
+      window.removeEventListener('storage', checkAuth);
+    };
+  }, [checkAuth]);
+
+  useEffect(() => {
+    if (isProtectedRoute && !isAuthenticated) {
+      router.push('/login');
+    } else if (pathname === '/login' && isAuthenticated) {
       router.push('/');
-      return true;
     }
-    return false;
+  }, [isAuthenticated, isProtectedRoute, pathname, router]);
+
+  const login = async (user: string, pass: string) => {
+    try {
+      const { access_token } = await loginUser(user, pass);
+      if (access_token) {
+        sessionStorage.setItem('accessToken', access_token);
+        setIsAuthenticated(true);
+        router.push('/');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Login failed:", error);
+      return false;
+    }
   };
 
   const logout = () => {
-    sessionStorage.removeItem('isAuthenticated');
+    sessionStorage.removeItem('accessToken');
     setIsAuthenticated(false);
     router.push('/login');
   };
 
-  if (!isAuthenticated && pathname !== '/login') {
+  if (isProtectedRoute && !isAuthenticated) {
     return null; // or a loading spinner
+  }
+
+  // Do not wrap admin page with this provider
+  if (pathname.startsWith('/admin')) {
+      return <>{children}</>;
   }
 
   return (

@@ -10,7 +10,7 @@ export interface User {
 }
 
 /**
- * Fetches all users from the backend.
+ * Fetches all users from the backend. Requires admin credentials.
  * @returns A promise that resolves to a list of users.
  */
 export async function getUsers(): Promise<User[]> {
@@ -28,7 +28,7 @@ export async function getUsers(): Promise<User[]> {
 }
 
 /**
- * Creates a new user.
+ * Creates a new user. Requires admin credentials.
  * @param username The username for the new user.
  * @param password The password for the new user.
  * @returns A promise that resolves to the newly created user.
@@ -47,6 +47,33 @@ export async function createUser(username: string, password: string): Promise<Us
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred during user creation.' }));
         throw new Error(errorData.detail || 'Failed to create user.');
+    }
+
+    return response.json();
+}
+
+/**
+ * Logs in a user and retrieves an access token.
+ * @param username The user's username.
+ * @param password The user's password.
+ * @returns A promise that resolves to an object containing the access token.
+ */
+export async function loginUser(username: string, password: string): Promise<{ access_token: string }> {
+    const formData = new URLSearchParams();
+    formData.append('username', username);
+    formData.append('password', password);
+
+    const response = await fetch(`${API_BASE_URL}/token`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Login failed due to a network or server error.' }));
+        throw new Error(errorData.detail || 'Incorrect username or password.');
     }
 
     return response.json();

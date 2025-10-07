@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent, useContext } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,17 +8,48 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { createUser, getUsers, User } from '@/lib/api';
-import { Loader2, UserPlus, Users, LogOut } from 'lucide-react';
-import { AuthContext } from '@/context/AuthContext';
+import { Loader2, UserPlus, Users, LogIn, LogOut } from 'lucide-react';
+
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'kX3ZyTAUNl4Cvkj8mftnYVozg7VOn8tMH9nV0pqJ';
 
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('isAdminAuthenticated') === 'true';
+    }
+    return false;
+  });
+  
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  
   const [users, setUsers] = useState<User[]>([]);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(true);
   const { toast } = useToast();
-  const authContext = useContext(AuthContext);
+
+  const handleAdminLogin = (e: FormEvent) => {
+    e.preventDefault();
+    if (loginUsername === ADMIN_USERNAME && loginPassword === ADMIN_PASSWORD) {
+        sessionStorage.setItem('isAdminAuthenticated', 'true');
+        setIsAuthenticated(true);
+        setLoginError('');
+        setLoginUsername('');
+        setLoginPassword('');
+    } else {
+        setLoginError('Invalid admin credentials.');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    sessionStorage.removeItem('isAdminAuthenticated');
+    setIsAuthenticated(false);
+  };
+
 
   const fetchUsers = async () => {
     setIsFetchingUsers(true);
@@ -37,12 +68,10 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const handleLogout = () => {
-    authContext?.logout();
-  };
+    if (isAuthenticated) {
+        fetchUsers();
+    }
+  }, [isAuthenticated]);
 
   const handleCreateUser = async (e: FormEvent) => {
     e.preventDefault();
@@ -66,6 +95,53 @@ export default function AdminPage() {
       setIsLoading(false);
     }
   };
+  
+  if (!isAuthenticated) {
+      return (
+        <main className="flex justify-center items-center min-h-screen p-4">
+          <Card className="w-full max-w-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LogIn /> Admin Login
+              </CardTitle>
+              <CardDescription>Enter admin credentials to manage users.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleAdminLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="admin-username">Admin Username</Label>
+                  <Input
+                    id="admin-username"
+                    type="text"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    placeholder="admin"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="admin-password">Admin Password</Label>
+                  <Input
+                    id="admin-password"
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+                {loginError && (
+                  <p className="text-sm font-medium text-destructive">{loginError}</p>
+                )}
+                <Button type="submit" className="w-full">
+                  Sign In
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </main>
+      )
+  }
 
   return (
     <main className="p-4 sm:p-6 lg:p-8">
@@ -73,9 +149,9 @@ export default function AdminPage() {
         <div className="flex justify-between items-center">
             <div className="space-y-2">
                 <h1 className="text-3xl font-bold">Admin Panel</h1>
-                <p className="text-muted-foreground">Manage users for your application.</p>
+                <p className="text-muted-foreground">Manage application users.</p>
             </div>
-            <Button variant="outline" onClick={handleLogout}>
+            <Button variant="outline" onClick={handleAdminLogout}>
                 <LogOut className="mr-2" /> Logout
             </Button>
         </div>
@@ -86,7 +162,7 @@ export default function AdminPage() {
                 <CardTitle className="flex items-center gap-2">
                     <UserPlus /> Create New User
                 </CardTitle>
-                <CardDescription>Add a new user to the database.</CardDescription>
+                <CardDescription>Add a new dashboard user to the database.</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleCreateUser} className="space-y-4">
